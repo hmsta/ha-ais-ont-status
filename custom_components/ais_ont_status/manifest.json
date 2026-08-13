@@ -1,0 +1,12 @@
+{
+  "codeowners": ["@hmsta"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/hmsta/ha-ais-ont-status",
+  "domain": "ais_ont_status",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/hmsta/ha-ais-ont-status/issues",
+  "name": "AIS ONT Status",
+  "requirements": [],
+  "version": "0.1.0"
+}

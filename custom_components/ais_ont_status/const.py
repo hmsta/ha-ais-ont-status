@@ -1,0 +1,42 @@
+"""Constants for AIS ONT Status."""
+
+from __future__ import annotations
+
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+    Platform,
+)
+
+DOMAIN = "ais_ont_status"
+
+CONF_SCAN_INTERVAL = "scan_interval"
+CONF_TIMEOUT = "timeout"
+CONF_RX_POWER_MIN_DBM = "rx_power_min_dbm"
+CONF_MODEM_REACHABILITY_PORT = "modem_reachability_port"
+
+DEFAULT_HOST = "192.168.1.1"
+DEFAULT_PORT = 23
+DEFAULT_USERNAME = "root"
+DEFAULT_SCAN_INTERVAL = 30
+DEFAULT_TIMEOUT = 10
+DEFAULT_RX_POWER_MIN_DBM = -30.0
+DEFAULT_MODEM_REACHABILITY_PORT = 80
+
+MIN_SCAN_INTERVAL = 30
+MIN_TIMEOUT = 3
+
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
+
+CONFIG_KEYS = {
+    CONF_HOST,
+    CONF_PORT,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_TIMEOUT,
+    CONF_RX_POWER_MIN_DBM,
+    CONF_MODEM_REACHABILITY_PORT,
+}

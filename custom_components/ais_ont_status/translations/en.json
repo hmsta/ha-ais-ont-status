@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AIS ONT Status",
+        "description": "Connect to the restricted ONT Telnet menu and read optical RX/TX power.",
+        "data": {
+          "host": "Host",
+          "port": "Telnet port",
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Scan interval in seconds",
+          "timeout": "Timeout in seconds",
+          "rx_power_min_dbm": "Minimum OK RX power in dBm",
+          "modem_reachability_port": "Modem reachability TCP port"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure AIS ONT Status",
+        "description": "Update the ONT Telnet connection settings.",
+        "data": {
+          "host": "Host",
+          "port": "Telnet port",
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Scan interval in seconds",
+          "timeout": "Timeout in seconds",
+          "rx_power_min_dbm": "Minimum OK RX power in dBm",
+          "modem_reachability_port": "Modem reachability TCP port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the ONT Telnet menu.",
+      "invalid_auth": "The ONT rejected the Telnet username or password.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This ONT is already configured.",
+      "reconfigure_successful": "Reconfiguration successful."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "modem_reachable": {
+        "name": "Modem reachable"
+      },
+      "fiber_link": {
+        "name": "Fiber link"
+      },
+      "telnet": {
+        "name": "Telnet"
+      }
+    },
+    "sensor": {
+      "rx_power": {
+        "name": "RX power"
+      },
+      "tx_power": {
+        "name": "TX power"
+      },
+      "poll_duration": {
+        "name": "Poll duration"
+      }
+    }
+  }
+}
