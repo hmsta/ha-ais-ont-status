@@ -16,6 +16,7 @@ CONF_SCAN_INTERVAL = "scan_interval"
 CONF_TIMEOUT = "timeout"
 CONF_RX_POWER_MIN_DBM = "rx_power_min_dbm"
 CONF_MODEM_REACHABILITY_PORT = "modem_reachability_port"
+CONF_WEB_SESSION_COOKIE = "web_session_cookie"
 
 DEFAULT_HOST = "192.168.1.1"
 DEFAULT_PORT = 23

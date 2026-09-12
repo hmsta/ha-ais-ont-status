@@ -6,9 +6,13 @@ import asyncio
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from html import unescape
 import re
 import time
 from typing import Final
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 IAC: Final = 255
 DONT: Final = 254
@@ -20,6 +24,22 @@ SE: Final = 240
 
 RX_RE = re.compile(r"RxPower\s*=\s*([-+]?\d+(?:\.\d+)?)\s*d?bm", re.IGNORECASE)
 TX_RE = re.compile(r"TxPower\s*=\s*([-+]?\d+(?:\.\d+)?)\s*d?bm", re.IGNORECASE)
+TOKEN_INPUT_RE = re.compile(
+    r"<input\b[^>]*(?:id|name)=[\"'](?:hwonttoken|x\.X_HW_Token)[\"'][^>]*>",
+    re.IGNORECASE,
+)
+TOKEN_VALUE_RE = re.compile(r"\bvalue=[\"']([^\"']+)[\"']", re.IGNORECASE)
+
+ACL_PATH: Final = "/html/bbsp/acl/aclsmart.asp"
+ACL_SET_PATH: Final = (
+    "/html/bbsp/acl/set.cgi"
+    "?x=InternetGatewayDevice.X_HW_Security.AclServices"
+    "&RequestFile=html/bbsp/acl/aclsmart.asp"
+)
+WEB_USER_AGENT: Final = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+)
 
 
 class AisOntError(Exception):
@@ -36,6 +56,10 @@ class InvalidAuth(AisOntError):
 
 class UnexpectedResponse(AisOntError):
     """The ONT returned an unexpected Telnet menu response."""
+
+
+class WebSessionError(AisOntError):
+    """The ONT rejected the temporary web session."""
 
 
 @dataclass(slots=True, frozen=True)
@@ -60,6 +84,24 @@ def parse_optical_power(output: str) -> tuple[float, float]:
     if rx_match is None or tx_match is None:
         raise UnexpectedResponse("Could not parse optical RX/TX power")
     return float(rx_match.group(1)), float(tx_match.group(1))
+
+
+def extract_hwonttoken(html: str) -> str:
+    """Extract the ONT web form token from the ACL page."""
+    for tag_match in TOKEN_INPUT_RE.finditer(html):
+        value_match = TOKEN_VALUE_RE.search(tag_match.group(0))
+        if value_match is not None:
+            return unescape(value_match.group(1))
+
+    raise WebSessionError("Could not find modem web token")
+
+
+def normalize_cookie_header(cookie_header: str) -> str:
+    """Normalize a copied Cookie header into the value sent to the ONT."""
+    cookie_header = cookie_header.strip()
+    if cookie_header.lower().startswith("cookie:"):
+        cookie_header = cookie_header.split(":", 1)[1].strip()
+    return cookie_header
 
 
 class AisOntTelnetClient:
@@ -131,6 +173,58 @@ class AisOntTelnetClient:
         if not status.telnet_ok:
             raise CannotConnect(status.error or "Telnet status path is not usable")
         return status
+
+    async def async_enable_telnet_lan(self, cookie_header: str) -> None:
+        """Enable LAN Telnet using a one-time authenticated web session cookie."""
+        await asyncio.to_thread(self._enable_telnet_lan, cookie_header)
+
+    def _enable_telnet_lan(self, cookie_header: str) -> None:
+        """Enable LAN Telnet through the ONT ACL web endpoint."""
+        cookie_header = normalize_cookie_header(cookie_header)
+        if not cookie_header:
+            raise WebSessionError("Missing modem web Cookie header")
+
+        page = self._web_request("GET", ACL_PATH, cookie_header)
+        token = extract_hwonttoken(page)
+        body = urlencode(
+            {
+                "x.TELNETLanEnable": "1",
+                "x.HTTPWifiEnable": "1",
+                "x.TELNETWifiEnable": "0",
+                "x.X_HW_Token": token,
+            }
+        )
+        self._web_request("POST", ACL_SET_PATH, cookie_header, body)
+
+    def _web_request(
+        self, method: str, path: str, cookie_header: str, body: str | None = None
+    ) -> str:
+        """Run a small blocking ONT web request."""
+        url = f"http://{self.host}{path}"
+        headers = {
+            "Cookie": cookie_header,
+            "User-Agent": WEB_USER_AGENT,
+            "Referer": f"http://{self.host}{ACL_PATH}",
+        }
+        data = None
+        if body is not None:
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            headers["Origin"] = f"http://{self.host}"
+            data = body.encode()
+
+        request = Request(url, data=data, headers=headers, method=method)
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                status = response.status
+                response_body = response.read().decode("utf-8", errors="ignore")
+        except HTTPError as err:
+            raise WebSessionError(f"Modem web request failed: HTTP {err.code}") from err
+        except (OSError, URLError) as err:
+            raise CannotConnect(str(err) or err.__class__.__name__) from err
+
+        if status < 200 or status >= 400:
+            raise WebSessionError(f"Modem web request failed: HTTP {status}")
+        return response_body
 
     def _error_status(
         self, started: float, error: str, modem_reachable: bool

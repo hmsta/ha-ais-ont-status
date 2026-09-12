@@ -8,7 +8,7 @@ Tested with:
 - Firmware `V5R024C10S128`
 - Restricted Telnet menu with `Retrieve Optical RX/TX Power`
 
-The integration only reads menu option `3` for optical RX/TX power. It does not modify PLOAM settings, retrieve PLOAM passwords, enable Telnet, or use the web UI.
+The integration only reads menu option `3` for optical RX/TX power. It does not modify PLOAM settings or retrieve PLOAM passwords. During reconfiguration it can optionally use a freshly copied modem web session cookie once to re-enable LAN Telnet after a modem reboot.
 
 ## Entities
 
@@ -62,6 +62,28 @@ Fields:
 - Modem reachability TCP port, default `80`
 
 Telnet must already be enabled on the ONT and should be restricted to LAN only.
+
+## Re-enable LAN Telnet
+
+Some ONTs disable Telnet again after a reboot. The integration reconfigure form has an optional advanced field named `Temporary modem web Cookie header` for this case.
+
+Flow:
+
+1. Log in to the modem web UI and solve the CAPTCHA.
+2. Open browser developer tools and copy a fresh request `Cookie` header from the modem page.
+3. In Home Assistant, open the AIS ONT Status integration and select reconfigure.
+4. Paste the cookie into `Temporary modem web Cookie header`.
+5. Submit the form.
+
+When the field is provided, the integration:
+
+1. Fetches `/html/bbsp/acl/aclsmart.asp` with the temporary cookie.
+2. Extracts the hidden `hwonttoken` value.
+3. Posts `TELNETLanEnable=1`, `TELNETWifiEnable=0`, and `HTTPWifiEnable=1`.
+4. Verifies that Telnet works with the configured Telnet credentials.
+5. Discards the cookie without saving it to the Home Assistant config entry.
+
+The modem web session expires quickly. If reconfigure reports that the web session was rejected, log in to the modem again and paste a fresh cookie. The manual DevTools command remains the fallback if the modem rejects cookie reuse from the Home Assistant host.
 
 ## Security Notes
 

@@ -11,12 +11,13 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNA
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
-from .client import AisOntTelnetClient, CannotConnect, InvalidAuth
+from .client import AisOntTelnetClient, CannotConnect, InvalidAuth, WebSessionError
 from .const import (
     CONF_MODEM_REACHABILITY_PORT,
     CONF_RX_POWER_MIN_DBM,
     CONF_SCAN_INTERVAL,
     CONF_TIMEOUT,
+    CONF_WEB_SESSION_COOKIE,
     DEFAULT_HOST,
     DEFAULT_MODEM_REACHABILITY_PORT,
     DEFAULT_PORT,
@@ -30,7 +31,9 @@ from .const import (
 )
 
 
-def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+def _schema(
+    defaults: dict[str, Any] | None = None, *, include_web_session_cookie: bool = False
+) -> vol.Schema:
     """Build the config form schema."""
     defaults = defaults or {}
     schema: dict[Any, Any] = {
@@ -69,12 +72,15 @@ def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     else:
         schema[vol.Required(CONF_PASSWORD)] = password_selector
 
+    if include_web_session_cookie:
+        schema[vol.Optional(CONF_WEB_SESSION_COOKIE)] = password_selector
+
     return vol.Schema(schema)
 
 
-async def _validate_input(user_input: dict[str, Any]) -> None:
-    """Validate that the ONT can be reached and read."""
-    client = AisOntTelnetClient(
+def _client_from_input(user_input: dict[str, Any]) -> AisOntTelnetClient:
+    """Build the ONT client from config flow input."""
+    return AisOntTelnetClient(
         host=user_input[CONF_HOST],
         port=user_input[CONF_PORT],
         username=user_input[CONF_USERNAME],
@@ -85,6 +91,11 @@ async def _validate_input(user_input: dict[str, Any]) -> None:
             CONF_MODEM_REACHABILITY_PORT, DEFAULT_MODEM_REACHABILITY_PORT
         ),
     )
+
+
+async def _validate_input(user_input: dict[str, Any]) -> None:
+    """Validate that the ONT can be reached and read."""
+    client = _client_from_input(user_input)
     await client.async_test_auth()
 
 
@@ -135,6 +146,9 @@ class AisOntStatusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         defaults = {**entry.data}
 
         if user_input is not None:
+            web_session_cookie = (
+                user_input.pop(CONF_WEB_SESSION_COOKIE, "") or ""
+            ).strip()
             if not user_input.get(CONF_PASSWORD):
                 user_input = {
                     key: value
@@ -148,11 +162,19 @@ class AisOntStatusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
 
             try:
+                if web_session_cookie:
+                    await _client_from_input(data).async_enable_telnet_lan(
+                        web_session_cookie
+                    )
                 await _validate_input(data)
+            except WebSessionError:
+                errors["base"] = "web_session_invalid"
             except InvalidAuth:
                 errors["base"] = "invalid_auth"
             except CannotConnect:
-                errors["base"] = "cannot_connect"
+                errors["base"] = (
+                    "enable_telnet_failed" if web_session_cookie else "cannot_connect"
+                )
             except Exception:
                 errors["base"] = "unknown"
             else:
@@ -167,6 +189,6 @@ class AisOntStatusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=_schema(defaults),
+            data_schema=_schema(defaults, include_web_session_cookie=True),
             errors=errors,
         )

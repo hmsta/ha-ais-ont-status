@@ -38,6 +38,23 @@ def test_parse_optical_power_raises_for_missing_values() -> None:
     raise AssertionError("Expected UnexpectedResponse")
 
 
+def test_extract_hwonttoken() -> None:
+    """Extract the ACL token from the modem web form."""
+    html = """
+    <input type="hidden" name="x.X_HW_Token" id="hwonttoken" value="abc123">
+    """
+
+    assert client.extract_hwonttoken(html) == "abc123"
+
+
+def test_normalize_cookie_header() -> None:
+    """Accept either a raw header value or a copied Cookie header line."""
+    raw = "body:Language:english:id=-1; CookieHttp=sid=abc"
+
+    assert client.normalize_cookie_header(raw) == raw
+    assert client.normalize_cookie_header(f"Cookie: {raw}") == raw
+
+
 def test_status_fields_for_modem_unreachable() -> None:
     """Document the unavailable modem state model."""
     status = client.AisOntStatus(

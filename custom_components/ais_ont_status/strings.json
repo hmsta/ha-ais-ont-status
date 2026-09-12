@@ -17,7 +17,7 @@
       },
       "reconfigure": {
         "title": "Reconfigure AIS ONT Status",
-        "description": "Update the ONT Telnet connection settings.",
+        "description": "Update the ONT Telnet connection settings. To re-enable LAN Telnet after a modem reboot, log in to the modem web UI, copy a fresh request Cookie header, and paste it below. The cookie is used once and is not stored.",
         "data": {
           "host": "Host",
           "port": "Telnet port",
@@ -26,13 +26,16 @@
           "scan_interval": "Scan interval in seconds",
           "timeout": "Timeout in seconds",
           "rx_power_min_dbm": "Minimum OK RX power in dBm",
-          "modem_reachability_port": "Modem reachability TCP port"
+          "modem_reachability_port": "Modem reachability TCP port",
+          "web_session_cookie": "Temporary modem web Cookie header"
         }
       }
     },
     "error": {
       "cannot_connect": "Cannot connect to the ONT Telnet menu.",
       "invalid_auth": "The ONT rejected the Telnet username or password.",
+      "enable_telnet_failed": "The modem web request completed, but Telnet still is not usable. Paste a fresh Cookie header or use the manual DevTools fallback.",
+      "web_session_invalid": "The modem rejected the temporary web session or the ACL token could not be found. Log in again and paste a fresh Cookie header.",
       "unknown": "Unexpected error."
     },
     "abort": {
