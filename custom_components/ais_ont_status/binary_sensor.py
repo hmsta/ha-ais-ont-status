@@ -72,6 +72,15 @@ class AisOntBinarySensor(AisOntEntity, BinarySensorEntity):
     entity_description: AisOntBinarySensorDescription
 
     @property
+    def available(self) -> bool:
+        """Return whether this sensor has a known state."""
+        if not super().available:
+            return False
+        if self.coordinator.data is None or self.entity_description.value_fn is None:
+            return False
+        return self.entity_description.value_fn(self.coordinator.data) is not None
+
+    @property
     def is_on(self) -> bool | None:
         """Return the binary sensor state."""
         if self.coordinator.data is None or self.entity_description.value_fn is None:

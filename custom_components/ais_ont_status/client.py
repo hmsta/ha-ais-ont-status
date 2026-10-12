@@ -309,16 +309,16 @@ class AisOntTelnetClient:
                 raise UnexpectedResponse("Telnet menu prompt not found")
 
             logged_in = True
-            writer.write(b"3\r\n")
-            await writer.drain()
-            power_output = await self._read_until(
-                reader,
-                writer,
-                ["select one command"],
-            )
             try:
+                writer.write(b"3\r\n")
+                await writer.drain()
+                power_output = await self._read_until(
+                    reader,
+                    writer,
+                    ["select one command"],
+                )
                 return parse_optical_power(power_output)
-            except UnexpectedResponse as err:
+            except (AisOntError, OSError, asyncio.TimeoutError) as err:
                 raise OpticalPowerUnavailable(str(err)) from err
         finally:
             if logged_in:

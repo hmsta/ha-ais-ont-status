@@ -84,6 +84,15 @@ class AisOntSensor(AisOntEntity, SensorEntity):
     entity_description: AisOntSensorDescription
 
     @property
+    def available(self) -> bool:
+        """Return whether this sensor has a known value."""
+        if not super().available:
+            return False
+        if self.coordinator.data is None or self.entity_description.value_fn is None:
+            return False
+        return self.entity_description.value_fn(self.coordinator.data) is not None
+
+    @property
     def native_value(self) -> float | int | str | None:
         """Return sensor value."""
         if self.coordinator.data is None or self.entity_description.value_fn is None:
