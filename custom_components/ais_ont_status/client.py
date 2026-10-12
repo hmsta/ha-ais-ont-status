@@ -58,6 +58,10 @@ class UnexpectedResponse(AisOntError):
     """The ONT returned an unexpected Telnet menu response."""
 
 
+class OpticalPowerUnavailable(AisOntError):
+    """The ONT Telnet menu worked, but optical power was not readable."""
+
+
 class WebSessionError(AisOntError):
     """The ONT rejected the temporary web session."""
 
@@ -147,6 +151,18 @@ class AisOntTelnetClient:
             rx_power, tx_power = await self._async_read_optical_power()
         except InvalidAuth:
             raise
+        except OpticalPowerUnavailable as err:
+            return AisOntStatus(
+                modem_reachable=True,
+                telnet_ok=True,
+                authenticated=True,
+                optical_signal_ok=False,
+                rx_power_dbm=None,
+                tx_power_dbm=None,
+                poll_duration_ms=int((time.monotonic() - started) * 1000),
+                checked_at=datetime.now(timezone.utc),
+                error=str(err),
+            )
         except AisOntError as err:
             return self._error_status(started, str(err), modem_reachable)
         except (OSError, asyncio.TimeoutError) as err:
@@ -300,7 +316,10 @@ class AisOntTelnetClient:
                 writer,
                 ["select one command"],
             )
-            return parse_optical_power(power_output)
+            try:
+                return parse_optical_power(power_output)
+            except UnexpectedResponse as err:
+                raise OpticalPowerUnavailable(str(err)) from err
         finally:
             if logged_in:
                 writer.write(b"4\r\n")

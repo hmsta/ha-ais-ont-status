@@ -1,5 +1,6 @@
 """Tests for AIS ONT Telnet parsing."""
 
+import asyncio
 from importlib import util
 from pathlib import Path
 import sys
@@ -72,3 +73,32 @@ def test_status_fields_for_modem_unreachable() -> None:
     assert status.modem_reachable is False
     assert status.telnet_ok is None
     assert status.rx_power_dbm is None
+
+
+def test_telnet_stays_on_when_optical_power_is_unavailable() -> None:
+    """A working Telnet menu is separate from readable optical values."""
+
+    class Client(client.AisOntTelnetClient):
+        async def _async_check_modem_reachable(self) -> bool:
+            return True
+
+        async def _async_read_optical_power(self) -> tuple[float, float]:
+            raise client.OpticalPowerUnavailable("Could not parse optical RX/TX power")
+
+    status = asyncio.run(
+        Client(
+            host="192.168.1.1",
+            port=23,
+            username="root",
+            password="admin",
+            timeout=10,
+            rx_power_min_dbm=-30.0,
+            modem_reachability_port=80,
+        ).async_get_status()
+    )
+
+    assert status.modem_reachable is True
+    assert status.telnet_ok is True
+    assert status.authenticated is True
+    assert status.rx_power_dbm is None
+    assert status.tx_power_dbm is None

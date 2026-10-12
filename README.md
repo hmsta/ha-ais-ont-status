@@ -104,7 +104,7 @@ Every scan interval the integration:
 5. Parses `RxPower` and `TxPower`.
 6. Logs out/closes the connection.
 
-If RX power is below the threshold, `Fiber link` turns off. If RX/TX power cannot be read, `Fiber link` and the power sensors become unavailable. `Modem reachable` shows whether the modem answers the lightweight TCP probe. `Telnet` shows whether the Telnet status path works end to end.
+If RX power is below the threshold, `Fiber link` turns off. If RX/TX power cannot be read, `Fiber link` and the power sensors become unavailable. `Modem reachable` shows whether the modem answers the lightweight TCP probe. `Telnet` shows whether the Telnet login and restricted menu are usable.
 
 Typical states:
 
@@ -119,7 +119,12 @@ modem_reachable = on
 telnet = on
 fiber_link = off
 
-Telnet disabled, wrong menu, or parser failure:
+Optical values unavailable after Telnet login:
+modem_reachable = on
+telnet = on
+fiber_link = unavailable
+
+Telnet disabled, auth failure, or wrong menu:
 modem_reachable = on
 telnet = off
 fiber_link = unavailable
